@@ -79,8 +79,8 @@
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Santhosh939s/gesture-control-mouse.git
-cd gesture-control-mouse
+git clone https://github.com/Santhosh939s/GestureControlMouse.git
+cd GestureControlMouse
 ```
 
 ### 2. Install Dependencies
@@ -113,7 +113,7 @@ Once started:
 ## 📁 Project Structure
 
 ```
-gesture-control-mouse/
+GestureControlMouse/
 ├── config.py              # Tunable system, camera, smoothing, and gesture thresholds
 ├── hand_detector.py       # MediaPipe Hands wrapper (21 3D landmarks & joint metrics)
 ├── gesture_classifier.py  # Rule-based gesture state classification engine
