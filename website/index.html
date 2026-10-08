@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Gesture Mouse Control — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080c14;--card:#0e1420;--border:#1e2a40;
+  --accent:#00e5b4;--accent2:#7c6eff;--warn:#ff8c42;--danger:#5a5aff;
+  --text:#e2e8f0;--dim:#4a5568;--dim2:#2d3748;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* ── Background grid ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,180,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,180,.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0
+}
+
+/* ── Header ── */
+header{position:relative;z-index:1;padding:2rem 2.5rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:.75rem}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;display:grid;place-items:center;font-size:1.2rem}
+.logo h1{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+.logo p{font-size:.72rem;color:var(--dim);margin-top:.1rem}
+
+.status-pill{display:flex;align-items:center;gap:.5rem;padding:.4rem 1rem;border-radius:999px;border:1px solid var(--border);font-size:.8rem;font-weight:600;transition:.3s}
+.status-pill.connected{border-color:var(--accent);color:var(--accent)}
+.status-pill.disconnected{border-color:var(--dim);color:var(--dim)}
+.pulse{width:8px;height:8px;border-radius:50%;background:currentColor}
+.pulse.live{animation:pulse 1.4s ease infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+
+/* ── Live bar ── */
+.live-bar{position:relative;z-index:1;margin:1.5rem 2.5rem;padding:1rem 1.5rem;
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.live-label{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--dim)}
+.live-gesture{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:-.03em;transition:.3s}
+.live-fps{margin-left:auto;font-size:.85rem;color:var(--dim);font-weight:600}
+.fps-val{color:var(--text);font-size:1rem;font-weight:700}
+.paused-badge{padding:.25rem .75rem;border-radius:6px;background:var(--warn);color:#000;font-size:.72rem;font-weight:700;letter-spacing:.1em;display:none}
+
+/* ── Grid ── */
+.grid{position:relative;z-index:1;padding:0 2.5rem 3rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem}
+
+/* ── Gesture card ── */
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:1.75rem 1.5rem;cursor:default;transition:.35s;position:relative;overflow:hidden
+}
+.card::before{content:'';position:absolute;inset:0;border-radius:20px;opacity:0;transition:.35s;pointer-events:none}
+.card.active{border-color:var(--accent-c,var(--accent));box-shadow:0 0 40px -10px var(--accent-c,var(--accent))}
+.card.active::before{opacity:.06;background:var(--accent-c,var(--accent))}
+
+.card-tag{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);margin-bottom:1rem}
+.hand-wrap{height:100px;display:grid;place-items:center;margin-bottom:1.25rem}
+svg.hand{filter:drop-shadow(0 4px 20px var(--accent-c,var(--accent)));transition:.35s;overflow:visible}
+.card.active svg.hand{filter:drop-shadow(0 0 30px var(--accent-c,var(--accent)))}
+
+.card h2{font-size:1.1rem;font-weight:700;margin-bottom:.4rem}
+.card p{font-size:.8rem;color:var(--dim);line-height:1.55}
+
+/* ── Animations on active ── */
+.card.active .anim-move   {animation:move-anim 1s ease infinite alternate}
+.card.active .anim-click  {animation:pinch 1s ease infinite}
+.card.active .anim-rclick {animation:rclick 1s ease infinite}
+.card.active .anim-scroll {animation:scrollY .9s ease infinite alternate}
+.card.active .anim-drag   {animation:drag 1.2s ease infinite}
+
+@keyframes move-anim{from{transform:translate(0,0)}to{transform:translate(12px,-8px)}}
+@keyframes pinch{0%,100%{transform:scale(1)}50%{transform:scale(.88)}}
+@keyframes rclick{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+@keyframes scrollY{from{transform:translateY(0)}to{transform:translateY(-10px)}}
+@keyframes drag{0%{transform:translate(0,0)}50%{transform:translate(18px,10px)}100%{transform:translate(0,0)}}
+
+/* ── Footer ── */
+footer{position:relative;z-index:1;text-align:center;padding:1.5rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🖐</div>
+    <div>
+      <h1>Gesture Mouse Control</h1>
+      <p>Live hand-tracking dashboard</p>
+    </div>
+  </div>
+  <div class="status-pill disconnected" id="statusPill">
+    <div class="pulse" id="pulseDot"></div>
+    <span id="statusText">Connecting…</span>
+  </div>
+</header>
+
+<div class="live-bar">
+  <div>
+    <div class="live-label">Active Gesture</div>
+    <div class="live-gesture" id="liveGesture">—</div>
+  </div>
+  <div>
+    <div class="live-label">Status</div>
+    <div id="liveLabel" style="font-size:.9rem;font-weight:600;color:var(--text)">Waiting…</div>
+  </div>
+  <span class="paused-badge" id="pausedBadge">PAUSED</span>
+  <div class="live-fps">
+    <span class="live-label">FPS &nbsp;</span><span class="fps-val" id="liveFps">—</span>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- MOVE -->
+  <div class="card" id="card-MOVE" style="--accent-c:#00e5b4">
+    <div class="card-tag">Gesture 1</div>
+    <div class="hand-wrap">
+      <svg class="hand anim-move" width="70" height="100" viewBox="0 0 70 100">
+        <g fill="#00e5b4">
+          <!-- palm -->
+          <rect x="18" y="55" width="34" height="32" rx="8" opacity=".25"/>
+          <!-- index finger up -->
+          <rect x="29" y="12" width="12" height="46" rx="6"/>
+          <!-- middle down -->
+          <rect x="43" y="38" width="11" height="32" rx="5" opacity=".3"/>
+          <!-- ring down -->
+          <rect x="16" y="40" width="11" height="30" rx="5" opacity=".3"/>
+          <!-- arrow -->
+          <path d="M35 6 L28 16 L32 14 L32 22 L38 22 L38 14 L42 16Z" fill="#00e5b4"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Move Cursor</h2>
+    <p>Raise only your <strong>index finger</strong> and move your hand to control the cursor.</p>
+  </div>
+
+  <!-- LEFT CLICK -->
+  <div class="card" id="card-LEFT_CLICK" style="--accent-c:#5a5aff">
+    <div class="card-tag">Gesture 2</div>
+    <div class="hand-wrap">
+      <svg class="hand anim-click" width="70" height="100" viewBox="0 0 70 100">
+        <g fill="#5a5aff">
+          <rect x="18" y="55" width="34" height="32" rx="8" opacity=".25"/>
+          <!-- index -->
+          <rect x="29" y="22" width="11" height="36" rx="5"/>
+          <!-- thumb -->
+          <rect x="12" y="40" width="28" height="10" rx="5"/>
+          <!-- pinch dot -->
+          <circle cx="32" cy="38" r="6" fill="#fff" opacity=".9"/>
+          <circle cx="32" cy="38" r="3" fill="#5a5aff"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Left Click</h2>
+    <p>Pinch <strong>index finger + thumb</strong> together briefly to left-click.</p>
+  </div>
+
+  <!-- RIGHT CLICK -->
+  <div class="card" id="card-RIGHT_CLICK" style="--accent-c:#ff8c42">
+    <div class="card-tag">Gesture 3</div>
+    <div class="hand-wrap">
+      <svg class="hand anim-rclick" width="70" height="100" viewBox="0 0 70 100">
+        <g fill="#ff8c42">
+          <rect x="18" y="58" width="34" height="30" rx="8" opacity=".25"/>
+          <!-- index -->
+          <rect x="27" y="18" width="11" height="42" rx="5"/>
+          <!-- middle -->
+          <rect x="40" y="18" width="11" height="42" rx="5"/>
+          <!-- touch dots -->
+          <circle cx="32" cy="20" r="5" fill="#fff" opacity=".9"/>
+          <circle cx="45" cy="20" r="5" fill="#fff" opacity=".9"/>
+          <line x1="37" y1="20" x2="40" y2="20" stroke="#ff8c42" stroke-width="2"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Right Click</h2>
+    <p>Raise <strong>index + middle</strong> fingers and tap their tips together to right-click.</p>
+  </div>
+
+  <!-- SCROLL -->
+  <div class="card" id="card-SCROLL_UP" style="--accent-c:#7c6eff">
+    <div class="card-tag">Gesture 4</div>
+    <div class="hand-wrap">
+      <svg class="hand anim-scroll" width="70" height="100" viewBox="0 0 70 100">
+        <g fill="#7c6eff">
+          <rect x="18" y="60" width="34" height="28" rx="8" opacity=".25"/>
+          <!-- index -->
+          <rect x="27" y="22" width="11" height="40" rx="5"/>
+          <!-- middle spread -->
+          <rect x="41" y="22" width="11" height="40" rx="5"/>
+          <!-- arrows -->
+          <path d="M22 18 L18 26 L21 24 L21 30 L23 30 L23 24 L26 26Z" fill="#7c6eff"/>
+          <path d="M48 18 L44 26 L47 24 L47 30 L49 30 L49 24 L52 26Z" fill="#7c6eff"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Scroll</h2>
+    <p><strong>Index + middle spread apart</strong> (not touching). Move hand up/down to scroll.</p>
+  </div>
+
+  <!-- SCROLL DOWN alias -->
+  <div class="card" id="card-SCROLL_DOWN" style="--accent-c:#7c6eff;display:none"></div>
+
+  <!-- DRAG -->
+  <div class="card" id="card-DRAG" style="--accent-c:#e879f9">
+    <div class="card-tag">Gesture 5</div>
+    <div class="hand-wrap">
+      <svg class="hand anim-drag" width="70" height="100" viewBox="0 0 70 100">
+        <g fill="#e879f9">
+          <rect x="18" y="55" width="34" height="32" rx="8" opacity=".25"/>
+          <rect x="29" y="22" width="11" height="36" rx="5"/>
+          <rect x="12" y="40" width="28" height="10" rx="5"/>
+          <circle cx="32" cy="38" r="6" fill="#fff" opacity=".9"/>
+          <circle cx="32" cy="38" r="3" fill="#e879f9"/>
+          <!-- drag arrow -->
+          <path d="M44 50 L56 62 L52 58 L56 62 L52 66Z" stroke="#e879f9" stroke-width="2" fill="none"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Click & Drag</h2>
+    <p><strong>Pinch and hold</strong> index + thumb for 12+ frames to start dragging. Release to drop.</p>
+  </div>
+
+  <!-- IDLE -->
+  <div class="card" id="card-IDLE" style="--accent-c:#64748b">
+    <div class="card-tag">Gesture 6</div>
+    <div class="hand-wrap">
+      <svg class="hand" width="70" height="100" viewBox="0 0 70 100">
+        <g fill="#64748b">
+          <rect x="18" y="45" width="34" height="42" rx="10" opacity=".4"/>
+          <rect x="27" y="42" width="11" height="18" rx="5" opacity=".5"/>
+          <rect x="40" y="44" width="10" height="16" rx="5" opacity=".4"/>
+          <rect x="15" y="46" width="10" height="15" rx="5" opacity=".4"/>
+        </g>
+      </svg>
+    </div>
+    <h2>Idle / Fist</h2>
+    <p>Close your hand into a <strong>fist</strong> to pause cursor movement.</p>
+  </div>
+
+</div>
+
+<footer>Hand Gesture Mouse Control &nbsp;·&nbsp; MediaPipe + OpenCV + PyAutoGUI &nbsp;·&nbsp; Polling <code>localhost:5000/api/gesture</code></footer>
+
+<script>
+const GESTURE_LABELS = {
+  MOVE:        "✦ Moving Cursor",
+  LEFT_CLICK:  "● Left Click",
+  RIGHT_CLICK: "◎ Right Click",
+  DRAG:        "✥ Dragging",
+  SCROLL_UP:   "↑ Scrolling Up",
+  SCROLL_DOWN: "↓ Scrolling Down",
+  IDLE:        "— Idle",
+  NONE:        "No hand detected",
+};
+
+// Cards that map to SCROLL_DOWN share SCROLL_UP card
+const CARD_MAP = {SCROLL_DOWN:"SCROLL_UP"};
+
+let lastGesture = null;
+let missCount   = 0;
+
+function setCard(gesture) {
+  document.querySelectorAll(".card").forEach(c => c.classList.remove("active"));
+  const key = CARD_MAP[gesture] || gesture;
+  const el  = document.getElementById("card-" + key);
+  if (el) el.classList.add("active");
+}
+
+function setStatus(connected) {
+  const pill = document.getElementById("statusPill");
+  const dot  = document.getElementById("pulseDot");
+  const txt  = document.getElementById("statusText");
+  if (connected) {
+    pill.className = "status-pill connected";
+    dot.className  = "pulse live";
+    txt.textContent = "Live";
+  } else {
+    pill.className = "status-pill disconnected";
+    dot.className  = "pulse";
+    txt.textContent = "Disconnected";
+  }
+}
+
+async function poll() {
+  try {
+    const res  = await fetch("/api/gesture", {cache:"no-store"});
+    const data = await res.json();
+    missCount  = 0;
+
+    setStatus(data.active);
+
+    const g = data.gesture;
+    document.getElementById("liveGesture").textContent = GESTURE_LABELS[g] || g;
+    document.getElementById("liveLabel").textContent   = data.label || "—";
+    document.getElementById("liveFps").textContent     = data.fps + " fps";
+
+    const pb = document.getElementById("pausedBadge");
+    pb.style.display = data.paused ? "inline-flex" : "none";
+
+    if (g !== lastGesture) {
+      lastGesture = g;
+      setCard(g);
+    }
+  } catch {
+    missCount++;
+    if (missCount > 3) setStatus(false);
+  }
+}
+
+setInterval(poll, 120);
+poll();
+</script>
+</body>
+</html>
